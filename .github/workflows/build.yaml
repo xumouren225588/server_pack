@@ -52,15 +52,15 @@ jobs:
           # Pack the directory using 7zip
           & "..\7zr.exe" a -t7z $packDir $nginxVersionDir
 
+      
       - name: Create Self-Extracting Archive
         run: |
-          $nginxVersionDir = "nginx-${{ github.event.inputs.nginx_version }}"
-          $packDir = "pack.7z"
-          $sfxPath = "7z.sfx"
-          $outputExe = "server_pack.exe"
-          # Combine SFX and 7z archive
-          copy /b $sfxPath + $packDir $outputExe
-
+          set sfxPath=7z.sfx
+          set packDir=pack.7z
+          set outputExe=server_pack.exe
+      
+          copy /b "%sfxPath%" + "%packDir%" "%outputExe%"
+        shell: cmd
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
