@@ -1,0 +1,68 @@
+name: Build Nginx with Custom Content
+
+on:
+  workflow_dispatch:
+    inputs:
+      nginx_version:
+        description: 'Nginx Version (e.g., 1.21.3)'
+        required: true
+        default: '1.21.5'
+      repo_address:
+        description: 'Repository Address (e.g., username/repo)'
+        required: true
+        default: 'username/repo'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Workflow Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up Nginx
+        run: |
+          $nginxVersion = "${{ github.event.inputs.nginx_version }}"
+          $repoAddress = "${{ github.event.inputs.repo_address }}"
+          $nginxUrl = "https://nginx.org/download/nginx-$nginxVersion.zip"
+          $nginxDir = "nginx"
+          $nginxVersionDir = "nginx-$nginxVersion"
+
+          # Download Nginx
+          Invoke-WebRequest -Uri $nginxUrl -OutFile "$nginxVersionDir.zip"
+
+          # Unzip Nginx
+          Expand-Archive -Path "$nginxVersionDir.zip" -DestinationPath $nginxDir
+
+          # Clear html folder
+          Remove-Item -Path "$nginxDir\$nginxVersionDir\html\*" -Recurse -Force
+
+          # Clone user repository into html folder
+          git clone "https://github.com/$repoAddress" "$nginxDir\$nginxVersionDir\html"
+
+      - name: Pack Nginx Directory
+        run: |
+          $nginxDir = "nginx"
+          $nginxVersionDir = "nginx-${{ github.event.inputs.nginx_version }}"
+          $packDir = "..\pack.7z"
+
+          # Navigate to nginx directory
+          cd $nginxDir
+
+          # Pack the directory using 7zip
+          & "..\7zr.exe" a -t7z $packDir $nginxVersionDir
+
+      - name: Create Self-Extracting Archive
+        run: |
+          $nginxVersionDir = "nginx-${{ github.event.inputs.nginx_version }}"
+          $packDir = "pack.7z"
+          $sfxPath = "7z.sfx"
+          $outputExe = "server_pack.exe"
+          # Combine SFX and 7z archive
+          copy /b $sfxPath + $packDir $outputExe
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: server_pack
+          path: ${{ github.workspace }}/server_pack.exe
